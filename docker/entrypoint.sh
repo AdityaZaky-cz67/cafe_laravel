@@ -38,7 +38,8 @@ fi
 
 # Jalankan migrasi database
 echo "🗄️ Menjalankan migrasi database..."
-php artisan migrate --force
+# Tambahkan || true di akhir perintah agar jika migrasi gagal, container tidak crash/exit
+php artisan migrate --force || echo "⚠️ Migrasi gagal, tetapi container tetap berjalan."
 
 # Clear & cache konfigurasi
 echo "⚙️ Caching konfigurasi..."
