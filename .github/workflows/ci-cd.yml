@@ -116,7 +116,7 @@ jobs:
         run: |
           docker compose up -d --build
           Write-Host "Menunggu container siap..."
-          Start-Sleep -Seconds 20
+          Start-Sleep -Seconds 30
 
       - name: ✅ Cek status container
         run: |
