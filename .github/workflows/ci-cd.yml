@@ -99,7 +99,6 @@ jobs:
               Write-Host ".env sudah tersedia."
           }
 
-            # Solusi Pasti: Hapus paksa container lama menggunakan sintaks PowerShell Windows asli
       - name: 🛑 Stop dan Hapus container lama yang tersangkut
         run: |
           Write-Host "Menghentikan dan menghapus container lama dari sistem..."
@@ -114,15 +113,14 @@ jobs:
 
       - name: 🚀 Jalankan container baru
         run: |
-          docker compose up -d --build
-          Write-Host "Menunggu container siap..."
-          Start-Sleep -Seconds 30
+          docker compose up -d --build --wait
+          Write-Host "✅ Semua container siap dan healthy!"
 
-      - name: ✅ Cek status container
+      - name: ✅ Verifikasi status container
         run: |
           docker compose ps
           Write-Host ""
-          Write-Host "Cek container app..."
+          Write-Host "Status container app:"
           docker compose exec -T app php artisan --version
 
       - name: 🌐 Verifikasi HTTP endpoint
@@ -134,7 +132,7 @@ jobs:
                   Write-Host "✅ Endpoint http://localhost:8080 aktif dan merespon 200 OK"
               }
           } catch {
-              Write-Host "Warning cek endpoint: $_"
+              Write-Host "⚠️ Warning cek endpoint: $_"
           }
 
       - name: 🎉 Deploy berhasil!
