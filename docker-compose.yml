@@ -13,7 +13,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: brewly-coffee:latest
-    container_name: brewly_app
+    container_name: brewly_apps
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
@@ -28,20 +28,14 @@ services:
       - brewly_network
     depends_on:
       db:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000", "||", "exit", "1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 45s
+        condition: service_started
 
   # ----------------------------------------------------------
   # SERVICE 2: Nginx Web Server
   # ----------------------------------------------------------
   webserver:
     image: nginx:1.25-alpine
-    container_name: brewly_nginx
+    container_name: brewly_nginxs
     restart: unless-stopped
     ports:
       - "8080:80"
@@ -52,17 +46,17 @@ services:
       - brewly_network
     depends_on:
       app:
-        condition: service_healthy
+        condition: service_started
 
   # ----------------------------------------------------------
   # SERVICE 3: MySQL Database
   # ----------------------------------------------------------
   db:
     image: mysql:8.0
-    container_name: brewly_db
+    container_name: brewly_databases
     restart: unless-stopped
     ports:
-      - "3307:3306"
+      - "3308:3306"
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:-brewly_coffee}
       MYSQL_USER: ${DB_USERNAME:-brewly_user}
@@ -84,7 +78,7 @@ services:
   # ----------------------------------------------------------
   phpmyadmin:
     image: phpmyadmin:latest
-    container_name: brewly_phpmyadmin
+    container_name: brewly_phpmyadmins
     restart: unless-stopped
     ports:
       - "8081:80"
