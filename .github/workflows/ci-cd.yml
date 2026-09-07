@@ -99,8 +99,17 @@ jobs:
               Write-Host ".env sudah tersedia."
           }
 
-      - name: 🛑 Stop container lama
+            # Solusi Pasti: Hapus paksa container lama menggunakan sintaks PowerShell Windows asli
+      - name: 🛑 Stop dan Hapus container lama yang tersangkut
         run: |
+          Write-Host "Menghentikan dan menghapus container lama dari sistem..."
+          
+          # Hapus container secara individu jika ada
+          if (docker ps -a -q --filter "name=brewly_db") { docker rm -f brewly_db }
+          if (docker ps -a -q --filter "name=brewly_app") { docker rm -f brewly_app }
+          if (docker ps -a -q --filter "name=brewly_nginx") { docker rm -f brewly_nginx }
+          
+          # Lakukan down via compose untuk membersihkan network sisa
           docker compose down --remove-orphans
 
       - name: 🚀 Jalankan container baru
