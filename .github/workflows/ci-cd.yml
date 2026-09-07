@@ -35,7 +35,7 @@ jobs:
   # ============================================================
   build-and-test:
     name: 🐳 Build & Test (Docker)
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64] # <--- REVISI: Disesuaikan dengan label runner aktif Anda
     timeout-minutes: 30
 
     steps:
@@ -77,7 +77,7 @@ jobs:
   # ============================================================
   deploy:
     name: 🚀 Deploy (docker-compose up)
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64] # <--- REVISI: Disesuaikan dengan label runner aktif Anda
     needs: build-and-test
     timeout-minutes: 20
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -103,10 +103,11 @@ jobs:
         run: |
           Write-Host "Menghentikan dan menghapus container lama dari sistem..."
           
-          # Hapus container secara individu jika ada
-          if (docker ps -a -q --filter "name=brewly_db") { docker rm -f brewly_db }
-          if (docker ps -a -q --filter "name=brewly_app") { docker rm -f brewly_app }
-          if (docker ps -a -q --filter "name=brewly_nginx") { docker rm -f brewly_nginx }
+          # REVISI: Filter nama disesuaikan dengan container_name asli di docker-compose.yml Anda
+          if (docker ps -a -q --filter "name=brewly_databases") { docker rm -f brewly_databases }
+          if (docker ps -a -q --filter "name=brewly_apps") { docker rm -f brewly_apps }
+          if (docker ps -a -q --filter "name=brewly_nginxs") { docker rm -f brewly_nginxs }
+          if (docker ps -a -q --filter "name=brewly_phpmyadmins") { docker rm -f brewly_phpmyadmins }
           
           # Lakukan down via compose untuk membersihkan network sisa
           docker compose down --remove-orphans
@@ -114,7 +115,7 @@ jobs:
       - name: 🚀 Jalankan container baru
         run: |
           docker compose up -d --build --wait
-          Write-Host "✅ Semua container siap dan healthy!"
+          Write-Host "✅ Semua container siap!"
 
       - name: ✅ Verifikasi status container
         run: |
@@ -155,7 +156,7 @@ jobs:
   # ============================================================
   notify:
     name: 📢 Laporan Pipeline
-    runs-on: self-hosted
+    runs-on: [self-hosted, Windows, X64] # <--- REVISI: Disesuaikan dengan label runner aktif Anda
     needs: [build-and-test, deploy]
     if: always()
 
