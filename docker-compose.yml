@@ -29,6 +29,12 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "php", "-r", "echo 'ok';"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 20s
 
   # ----------------------------------------------------------
   # SERVICE 2: Nginx Web Server
@@ -45,7 +51,8 @@ services:
     networks:
       - brewly_network
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   # ----------------------------------------------------------
   # SERVICE 3: MySQL Database
