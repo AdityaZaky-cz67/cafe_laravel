@@ -1,6 +1,6 @@
 # ============================================================
-#  Brewly Coffee — Dockerfile
-#  Base: PHP 8.2 FPM Alpine (ringan ~80MB)
+#  Brewly Coffee — Dockerfile (REVISED VERSION)
+#  Base: PHP 8.2 FPM Alpine
 # ============================================================
 
 FROM php:8.2-fpm-alpine
@@ -23,18 +23,18 @@ RUN apk add --no-cache \
     icu-dev \
     mysql-client \
     && docker-php-ext-configure gd \
-        --with-freetype \
-        --with-jpeg \
+    --with-freetype \
+    --with-jpeg \
     && docker-php-ext-install \
-        pdo \
-        pdo_mysql \
-        mbstring \
-        zip \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        intl \
+    pdo \
+    pdo_mysql \
+    mbstring \
+    zip \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    intl \
     && rm -rf /var/cache/apk/*
 
 # ---- Install Composer ----
@@ -43,22 +43,21 @@ COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 # ---- Set working directory ----
 WORKDIR /var/www/html
 
-# ---- Copy composer files dulu (untuk cache layer) ----
-COPY composer.json composer.lock ./
-
-# ---- Install PHP dependencies ----
-ARG INSTALL_DEV=false
-RUN if [ "$INSTALL_DEV" = "true" ]; then \
-        composer install --no-interaction --no-scripts --prefer-dist; \
-    else \
-        composer install --no-dev --no-interaction --no-scripts --prefer-dist --optimize-autoloader; \
-    fi
-
-# ---- Copy semua source code ----
+# ---- 1. Copy seluruh source code terlebih dahulu ----
+# Ini memastikan file project masuk sebelum proses instalasi dependency composer
 COPY . .
 
-# ---- Default .env bila belum ada ----
-RUN cp .env.example .env
+# ---- 2. Hapus duplikasi pembuatan .env di sini ----
+# Catatan: Pembuatan .env sudah ditangani dengan benar oleh ci-cd.yml menggunakan .env.docker
+
+# ---- 3. Jalankan Install PHP dependencies ----
+# Dengan posisi ini, folder vendor dijamin tidak akan terhapus atau tertimpa oleh .dockerignore
+ARG INSTALL_DEV=false
+RUN if [ "$INSTALL_DEV" = "true" ]; then \
+    composer install --no-interaction --no-scripts --prefer-dist; \
+    else \
+    composer install --no-dev --no-interaction --no-scripts --prefer-dist --optimize-autoloader; \
+    fi
 
 # ---- Jalankan post-install scripts ----
 RUN composer run-script post-autoload-dump
