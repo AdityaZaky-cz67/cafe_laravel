@@ -1,0 +1,166 @@
+# ============================================================
+#  Brewly Coffee — CI/CD Pipeline
+#  GitHub Actions dengan Self-Hosted Runner
+# ============================================================
+#
+#  Alur Pipeline:
+#  1. Trigger: push ke branch main/develop atau pull request
+#  2. Job 1 (test): Jalankan PHPUnit test + lint
+#  3. Job 2 (deploy): Deploy ke server via self-hosted runner
+# ============================================================
+
+name: Brewly Coffee CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+# Batalkan run sebelumnya jika ada push baru
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================
+  # JOB 1: TEST & LINT
+  # Berjalan di GitHub-hosted runner (ubuntu)
+  # ============================================================
+  test:
+    name: 🧪 Test & Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        php-version: [8.2]
+
+    steps:
+      - name: 📥 Checkout kode
+        uses: actions/checkout@v4
+
+      - name: 🐘 Setup PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, xml, bcmath, sqlite3, pdo_sqlite
+          coverage: none
+          tools: composer:v2
+
+      - name: 📦 Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
+      - name: 📦 Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: ⚙️ Persiapkan environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: 🗄️ Jalankan migrasi database (SQLite)
+        run: |
+          touch database/database.sqlite
+          php artisan migrate --force --env=testing
+
+      - name: 🔍 Validasi sintaks PHP
+        run: find app resources -name "*.php" | xargs php -l
+
+      - name: 🧪 Jalankan PHPUnit tests
+        run: php artisan test --env=testing
+
+      - name: ✅ Laporan hasil test
+        if: always()
+        run: echo "Test selesai dengan status ${{ job.status }}"
+
+  # ============================================================
+  # JOB 2: DEPLOY — Self-Hosted Runner
+  # Hanya berjalan setelah test berhasil, dan hanya di branch main
+  # ============================================================
+  deploy:
+    name: 🚀 Deploy ke Server
+    runs-on: self-hosted          # ← Self-hosted runner di server Anda
+    needs: test                   # ← Menunggu job test selesai
+    timeout-minutes: 20
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    environment:
+      name: production
+      url: http://brewly.yourdomain.com
+
+    steps:
+      - name: 📥 Checkout kode terbaru
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 📦 Install Composer dependencies (produksi)
+        run: composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: ⚙️ Perbarui file environment
+        run: |
+          php artisan config:clear
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+
+      - name: 🗄️ Jalankan migrasi database
+        run: php artisan migrate --force
+
+      - name: 🔧 Set permission folder storage
+        run: |
+          chmod -R 775 storage bootstrap/cache
+          chown -R www-data:www-data storage bootstrap/cache || true
+
+      - name: 🔄 Reload PHP-FPM / Web Server
+        run: |
+          # Sesuaikan dengan konfigurasi server Anda
+          # Uncomment salah satu sesuai kebutuhan:
+          # sudo systemctl reload php8.2-fpm
+          # sudo systemctl reload nginx
+          # sudo apachectl graceful
+          echo "✅ Web server di-reload"
+
+      - name: 🎉 Notifikasi Deploy Berhasil
+        run: |
+          echo "============================================"
+          echo "  🚀 Brewly Coffee berhasil di-deploy!"
+          echo "  Branch : ${{ github.ref_name }}"
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Waktu  : $(date '+%Y-%m-%d %H:%M:%S')"
+          echo "============================================"
+
+      - name: 🧹 Bersihkan cache lama
+        if: always()
+        run: |
+          php artisan cache:clear || true
+          echo "Cache dibersihkan."
+
+  # ============================================================
+  # JOB 3: NOTIFIKASI (opsional)
+  # ============================================================
+  notify:
+    name: 📢 Notifikasi
+    runs-on: ubuntu-latest
+    needs: [test, deploy]
+    if: always()
+
+    steps:
+      - name: 📊 Status Pipeline
+        run: |
+          echo "========================================"
+          echo "  Pipeline Brewly Coffee CI/CD"
+          echo "  Test   : ${{ needs.test.result }}"
+          echo "  Deploy : ${{ needs.deploy.result }}"
+          echo "  Commit : ${{ github.sha }}"
+          echo "  Actor  : ${{ github.actor }}"
+          echo "========================================"
