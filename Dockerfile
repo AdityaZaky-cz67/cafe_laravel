@@ -44,14 +44,9 @@ COPY --from=composer:2.7 /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 # ---- 1. Copy seluruh source code terlebih dahulu ----
-# Ini memastikan file project masuk sebelum proses instalasi dependency composer
 COPY . .
 
-# ---- 2. Hapus duplikasi pembuatan .env di sini ----
-# Catatan: Pembuatan .env sudah ditangani dengan benar oleh ci-cd.yml menggunakan .env.docker
-
-# ---- 3. Jalankan Install PHP dependencies ----
-# Dengan posisi ini, folder vendor dijamin tidak akan terhapus atau tertimpa oleh .dockerignore
+# ---- 2. Jalankan Install PHP dependencies ----
 ARG INSTALL_DEV=false
 RUN if [ "$INSTALL_DEV" = "true" ]; then \
     composer install --no-interaction --no-scripts --prefer-dist; \
@@ -62,10 +57,13 @@ RUN if [ "$INSTALL_DEV" = "true" ]; then \
 # ---- Jalankan post-install scripts ----
 RUN composer run-script post-autoload-dump
 
-# ---- Set permission folder Laravel ----
+# ---- Set permission awal di image (fallback kalau suatu saat TIDAK pakai bind mount) ----
+# CATATAN PENTING: kalau docker-compose kamu bind mount ".:/var/www/html",
+# permission ini akan TERTIMPA oleh permission folder host saat container start.
+# Permission fix yang SEBENARNYA BERLAKU harus dilakukan di entrypoint.sh saat runtime.
 RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache
 
 # ---- Copy custom PHP config ----
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/custom.ini
